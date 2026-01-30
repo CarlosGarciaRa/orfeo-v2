@@ -77,7 +77,7 @@ client.on(Events.MessageCreate, async (message) => {
 
 async function main() {
   // Registrar primero el extractor de YouTube (yt-dlp) para que búsquedas por nombre lo usen
-  await player.extractors.register(YouTubeYtDlpExtractor);
+  await player.extractors.register(YouTubeYtDlpExtractor, {});
   await player.extractors.loadMulti(DefaultExtractors);
   await client.login(token);
 }
