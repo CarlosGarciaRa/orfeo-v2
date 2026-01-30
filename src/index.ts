@@ -1,7 +1,7 @@
 import { Client, Events, GatewayIntentBits } from 'discord.js';
 import { Player } from 'discord-player';
 import { DefaultExtractors } from '@discord-player/extractor';
-import { YoutubeiExtractor } from 'discord-player-youtubei';
+import { YouTubeYtDlpExtractor } from './extractors/YouTubeYtDlpExtractor.js';
 import 'dotenv/config';
 import { PREFIX, COMMANDS } from './config.js';
 import * as music from './commands/music.js';
@@ -76,12 +76,9 @@ client.on(Events.MessageCreate, async (message) => {
 });
 
 async function main() {
+  // Registrar primero el extractor de YouTube (yt-dlp) para que búsquedas por nombre lo usen
+  await player.extractors.register(YouTubeYtDlpExtractor);
   await player.extractors.loadMulti(DefaultExtractors);
-  // Cliente ANDROID puede evitar el "signature decipher" del reproductor web cuando YouTube lo rompe
-  await player.extractors.register(YoutubeiExtractor, {
-    streamOptions: { useClient: 'ANDROID' },
-    disablePlayer: true,
-  });
   await client.login(token);
 }
 

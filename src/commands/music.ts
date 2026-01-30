@@ -1,5 +1,6 @@
 import type { Message } from 'discord.js';
-import { useMainPlayer, useQueue, QueryType } from 'discord-player';
+import { useMainPlayer, useQueue } from 'discord-player';
+import { GetListByKeyword } from 'youtube-search-api';
 import { PREFIX, COMMANDS } from '../config.js';
 
 /** Indica si el texto parece una URL de audio/vídeo (YouTube, SoundCloud, etc.). */
@@ -24,6 +25,17 @@ async function reply(message: Message, text: string) {
   if (ch && 'send' in ch && typeof (ch as { send: (x: string) => Promise<unknown> }).send === 'function') {
     return (ch as { send: (x: string) => Promise<unknown> }).send(text);
   }
+}
+
+type SendableChannel = { send: (x: string) => Promise<{ edit: (x: string) => Promise<unknown> }> };
+
+/** Envía un mensaje que se puede editar; devuelve el mensaje o null si el canal no permite enviar. */
+async function sendStatusMessage(message: Message, text: string): Promise<{ edit: (x: string) => Promise<unknown> } | null> {
+  const ch = message.channel as SendableChannel | undefined;
+  if (ch?.send) {
+    return ch.send(text);
+  }
+  return null;
 }
 
 export async function help(message: Message): Promise<void> {
@@ -64,35 +76,34 @@ export async function play(message: Message, args: string[]): Promise<void> {
   };
   const baseOptions = { nodeOptions, requestedBy: message.author };
 
+  const initialStatus = isLikelyUrl(query) ? '⬇️ **Descargando...**' : '🔍 **Buscando...**';
+  const statusMsg = await sendStatusMessage(message, initialStatus);
+  const updateStatus = (text: string) => statusMsg?.edit(text).catch(() => {});
+
   try {
     let playResult: Awaited<ReturnType<typeof player.play>>;
 
     if (isLikelyUrl(query)) {
-      // URL directa: el extractor correspondiente la resuelve
       playResult = await player.play(voiceChannel, query, baseOptions);
     } else {
-      // Texto: buscar primero en YouTube (como el bot Python) y usar el primer resultado
-      const searchResult = await player.search(query, {
-        searchEngine: QueryType.YOUTUBE_SEARCH,
-        requestedBy: message.author,
-      });
-      if (searchResult.isEmpty() || !searchResult.hasTracks()) {
-        await reply(message, `No se encontró nada para "${query}". Prueba con otro término o una URL.`);
+      const searchResult = await GetListByKeyword(query, false, 1, [{ type: 'video' }]);
+      if (!searchResult?.items?.length) {
+        await updateStatus(`No se encontró nada para "${query}". Prueba con otro término o una URL.`);
         return;
       }
-      const firstTrack = searchResult.tracks[0];
-      playResult = await player.play(voiceChannel, firstTrack, baseOptions);
+      const first = searchResult.items[0];
+      const url = `https://www.youtube.com/watch?v=${first.id}`;
+      await updateStatus(`⬇️ **Descargando:** \`${first.title ?? query}\``);
+      playResult = await player.play(voiceChannel, url, baseOptions);
     }
 
     const track = playResult.track;
     const wasQueued = playResult.queue.tracks.size > 0;
-    const status = wasQueued ? 'En cola' : 'Reproduciendo';
-    await reply(message,
-      `${status} \`\`\`${track.title} (${track.duration})\`\`\``
-    );
+    const status = wasQueued ? '📋 **En cola:**' : '▶️ **Reproduciendo:**';
+    await updateStatus(`${status} \`${track.title}\` (${track.duration})`);
   } catch (err) {
     console.error('Error en play:', err);
-    await reply(message, 'No se pudo reproducir. Prueba otra búsqueda o enlace.');
+    await updateStatus('No se pudo reproducir. Prueba otra búsqueda o enlace.');
   }
 }
 
