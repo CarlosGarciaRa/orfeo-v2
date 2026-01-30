@@ -1,0 +1,11 @@
+# Render Blueprint - Bot de Discord Orfeo v2
+# https://render.com/docs/blueprint-spec
+services:
+  - type: worker
+    name: orfeo-v2
+    env: node
+    buildCommand: yarn install && yarn build
+    startCommand: yarn start
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false  # Añade el token en el dashboard de Render

@@ -1,0 +1,31 @@
+{
+  "name": "orfeo-v2",
+  "version": "0.1.0",
+  "description": "Bot de Discord para reproducción de música (TypeScript)",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["discord", "bot", "music"],
+  "license": "MIT",
+  "dependencies": {
+    "@discord-player/extractor": "^7.1.0",
+    "discord-player": "^7.1.0",
+    "discord-player-youtubei": "^1.5.0",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "ffmpeg-static": "^5.2.0",
+    "mediaplex": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20.18"
+  }
+}
