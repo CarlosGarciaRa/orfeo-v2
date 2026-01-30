@@ -9,7 +9,11 @@
     "dev": "tsx watch src/index.ts",
     "typecheck": "tsc --noEmit"
   },
-  "keywords": ["discord", "bot", "music"],
+  "keywords": [
+    "discord",
+    "bot",
+    "music"
+  ],
   "license": "MIT",
   "dependencies": {
     "@discord-player/extractor": "^7.1.0",
@@ -18,7 +22,9 @@
     "discord.js": "^14.16.3",
     "dotenv": "^16.4.5",
     "ffmpeg-static": "^5.2.0",
-    "mediaplex": "^1.0.0"
+    "mediaplex": "^1.0.0",
+    "youtube-dl-exec": "^3.0.30",
+    "youtube-search-api": "^2.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
