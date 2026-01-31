@@ -1,6 +1,12 @@
 import type { Track } from 'discord-player';
 import { BaseExtractor, QueryType, Track as TrackClass } from 'discord-player';
-import youtubedl from 'youtube-dl-exec';
+import youtubedlPkg from 'youtube-dl-exec';
+
+// En Railway/entornos sin Python usamos el binario standalone (ver Dockerfile)
+const youtubedl =
+  process.env.YT_DLP_BINARY_PATH != null
+    ? youtubedlPkg.create(process.env.YT_DLP_BINARY_PATH)
+    : youtubedlPkg;
 
 const YOUTUBE_URL_REGEX =
   /^(https?:\/\/)?(www\.|m\.)?(youtube\.com|youtu\.be)\/(watch\?v=|embed\/|v\/)?([\w-]{11})(\S*)$/i;
