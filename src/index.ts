@@ -29,6 +29,14 @@ player.events.on('error', (queue, error) => {
 player.events.on('playerError', (queue, error, track) => {
   console.error('Error del reproductor al reproducir:', track?.title ?? 'track', error);
 });
+player.events.on('playerStart', (queue, track) => {
+  const channelId = (queue.metadata?.channel as { id?: string } | undefined)?.id;
+  music.updatePlayStatusToPlaying(channelId, { title: track.title, duration: track.duration });
+});
+player.events.on('playerFinish', (queue, track) => {
+  const channelId = (queue.metadata?.channel as { id?: string } | undefined)?.id;
+  music.updatePlayStatusToFinished(channelId, { title: track.title });
+});
 
 const commandHandlers: Record<string, (msg: import('discord.js').Message, args: string[]) => Promise<void>> = {
   help: music.help,
