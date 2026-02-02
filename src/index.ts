@@ -3,7 +3,7 @@ import { Player } from 'discord-player';
 import { DefaultExtractors } from '@discord-player/extractor';
 import { YouTubeYtDlpExtractor } from './extractors/YouTubeYtDlpExtractor.js';
 import 'dotenv/config';
-import { PREFIX, COMMANDS } from './config.js';
+import { PREFIX, COMMANDS, isGuildAllowed } from './config.js';
 import * as music from './commands/music.js';
 
 const token = process.env.DISCORD_TOKEN;
@@ -28,6 +28,14 @@ player.events.on('error', (queue, error) => {
 });
 player.events.on('playerError', (queue, error, track) => {
   console.error('Error del reproductor al reproducir:', track?.title ?? 'track', error);
+});
+player.events.on('playerStart', (queue, track) => {
+  const channelId = (queue.metadata?.channel as { id?: string } | undefined)?.id;
+  music.updatePlayStatusToPlaying(channelId, { title: track.title, duration: track.duration });
+});
+player.events.on('playerFinish', (queue, track) => {
+  const channelId = (queue.metadata?.channel as { id?: string } | undefined)?.id;
+  music.updatePlayStatusToFinished(channelId, { title: track.title });
 });
 
 const commandHandlers: Record<string, (msg: import('discord.js').Message, args: string[]) => Promise<void>> = {
@@ -56,6 +64,14 @@ client.once(Events.ClientReady, (readyClient) => {
   console.log(`Listo. Conectado como ${readyClient.user.tag}`);
 });
 
+// Si añaden el bot a un servidor no autorizado, salir al momento
+client.on(Events.GuildCreate, async (guild) => {
+  if (!isGuildAllowed(guild.id)) {
+    console.warn(`Servidor no autorizado: ${guild.name} (${guild.id}). Saliendo.`);
+    await guild.leave().catch((err) => console.error('Error al salir del servidor:', err));
+  }
+});
+
 client.on(Events.MessageCreate, async (message) => {
   if (message.author.bot) return;
   const parsed = parseCommand(message.content);
@@ -66,6 +82,12 @@ client.on(Events.MessageCreate, async (message) => {
 
   const guild = message.guild;
   if (!guild) return;
+
+  // Lista blanca: solo responder en servidores autorizados
+  if (!isGuildAllowed(guild.id)) {
+    await message.channel.send('Este bot no está autorizado en este servidor.').catch(() => {});
+    return;
+  }
 
   try {
     await player.context.provide({ guild }, () => handler(message, parsed.args));

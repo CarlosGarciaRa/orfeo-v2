@@ -28,14 +28,32 @@ async function reply(message: Message, text: string) {
 }
 
 type SendableChannel = { send: (x: string) => Promise<{ edit: (x: string) => Promise<unknown> }> };
+type StatusMessage = { edit: (x: string) => Promise<unknown> };
+
+/** Último mensaje de estado por canal (para actualizar "En cola" → "Reproduciendo" y "Terminó"). */
+const statusMessagesByChannel = new Map<string, StatusMessage>();
 
 /** Envía un mensaje que se puede editar; devuelve el mensaje o null si el canal no permite enviar. */
-async function sendStatusMessage(message: Message, text: string): Promise<{ edit: (x: string) => Promise<unknown> } | null> {
+async function sendStatusMessage(message: Message, text: string): Promise<StatusMessage | null> {
   const ch = message.channel as SendableChannel | undefined;
   if (ch?.send) {
     return ch.send(text);
   }
   return null;
+}
+
+/** Actualiza el mensaje de estado del canal cuando empieza a sonar una pista (p. ej. pasa de "En cola" a "Reproduciendo"). */
+export function updatePlayStatusToPlaying(channelId: string | undefined, track: { title: string; duration: string }) {
+  if (!channelId) return;
+  const msg = statusMessagesByChannel.get(channelId);
+  msg?.edit(`▶️ **Reproduciendo:** \`${track.title}\` (${track.duration})`).catch(() => {});
+}
+
+/** Actualiza el mensaje de estado del canal cuando termina una pista. */
+export function updatePlayStatusToFinished(channelId: string | undefined, track: { title: string }) {
+  if (!channelId) return;
+  const msg = statusMessagesByChannel.get(channelId);
+  msg?.edit(`✅ **Terminó:** \`${track.title}\``).catch(() => {});
 }
 
 export async function help(message: Message): Promise<void> {
@@ -78,6 +96,7 @@ export async function play(message: Message, args: string[]): Promise<void> {
 
   const initialStatus = isLikelyUrl(query) ? '⬇️ **Descargando...**' : '🔍 **Buscando...**';
   const statusMsg = await sendStatusMessage(message, initialStatus);
+  if (statusMsg) statusMessagesByChannel.set(message.channel.id, statusMsg);
   const updateStatus = (text: string) => statusMsg?.edit(text).catch(() => {});
 
   try {
