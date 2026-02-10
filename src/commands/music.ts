@@ -30,8 +30,8 @@ async function reply(message: Message, text: string) {
 type SendableChannel = { send: (x: string) => Promise<{ edit: (x: string) => Promise<unknown> }> };
 type StatusMessage = { edit: (x: string) => Promise<unknown> };
 
-/** Último mensaje de estado por canal (para actualizar "En cola" → "Reproduciendo" y "Terminó"). */
-const statusMessagesByChannel = new Map<string, StatusMessage>();
+/** Mensajes de estado por canal y track (canal -> trackId -> mensaje) para actualizar "En cola" → "Reproduciendo" y "Terminó". */
+const statusMessagesByChannelAndTrack = new Map<string, Map<string, StatusMessage>>();
 
 /** Envía un mensaje que se puede editar; devuelve el mensaje o null si el canal no permite enviar. */
 async function sendStatusMessage(message: Message, text: string): Promise<StatusMessage | null> {
@@ -42,18 +42,28 @@ async function sendStatusMessage(message: Message, text: string): Promise<Status
   return null;
 }
 
-/** Actualiza el mensaje de estado del canal cuando empieza a sonar una pista (p. ej. pasa de "En cola" a "Reproduciendo"). */
-export function updatePlayStatusToPlaying(channelId: string | undefined, track: { title: string; duration: string }) {
-  if (!channelId) return;
-  const msg = statusMessagesByChannel.get(channelId);
+/** Actualiza el mensaje de estado cuando empieza a sonar una pista (p. ej. pasa de "En cola" a "Reproduciendo"). */
+export function updatePlayStatusToPlaying(
+  channelId: string | undefined,
+  trackId: string | undefined,
+  track: { title: string; duration: string }
+) {
+  if (!channelId || !trackId) return;
+  const msg = statusMessagesByChannelAndTrack.get(channelId)?.get(trackId);
   msg?.edit(`▶️ **Reproduciendo:** \`${track.title}\` (${track.duration})`).catch(() => {});
 }
 
-/** Actualiza el mensaje de estado del canal cuando termina una pista. */
-export function updatePlayStatusToFinished(channelId: string | undefined, track: { title: string }) {
-  if (!channelId) return;
-  const msg = statusMessagesByChannel.get(channelId);
+/** Actualiza el mensaje de estado cuando termina una pista y lo elimina del Map. */
+export function updatePlayStatusToFinished(
+  channelId: string | undefined,
+  trackId: string | undefined,
+  track: { title: string }
+) {
+  if (!channelId || !trackId) return;
+  const byTrack = statusMessagesByChannelAndTrack.get(channelId);
+  const msg = byTrack?.get(trackId);
   msg?.edit(`✅ **Terminó:** \`${track.title}\``).catch(() => {});
+  byTrack?.delete(trackId);
 }
 
 export async function help(message: Message): Promise<void> {
@@ -96,7 +106,6 @@ export async function play(message: Message, args: string[]): Promise<void> {
 
   const initialStatus = isLikelyUrl(query) ? '⬇️ **Descargando...**' : '🔍 **Buscando...**';
   const statusMsg = await sendStatusMessage(message, initialStatus);
-  if (statusMsg) statusMessagesByChannel.set(message.channel.id, statusMsg);
   const updateStatus = (text: string) => statusMsg?.edit(text).catch(() => {});
 
   try {
@@ -117,6 +126,14 @@ export async function play(message: Message, args: string[]): Promise<void> {
     }
 
     const track = playResult.track;
+    if (statusMsg) {
+      let byTrack = statusMessagesByChannelAndTrack.get(message.channel.id);
+      if (!byTrack) {
+        byTrack = new Map();
+        statusMessagesByChannelAndTrack.set(message.channel.id, byTrack);
+      }
+      byTrack.set(track.id, statusMsg);
+    }
     const wasQueued = playResult.queue.tracks.size > 0;
     const status = wasQueued ? '📋 **En cola:**' : '▶️ **Reproduciendo:**';
     await updateStatus(`${status} \`${track.title}\` (${track.duration})`);
