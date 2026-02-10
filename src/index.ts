@@ -31,11 +31,11 @@ player.events.on('playerError', (queue, error, track) => {
 });
 player.events.on('playerStart', (queue, track) => {
   const channelId = (queue.metadata?.channel as { id?: string } | undefined)?.id;
-  music.updatePlayStatusToPlaying(channelId, { title: track.title, duration: track.duration });
+  music.updatePlayStatusToPlaying(channelId, track.id, { title: track.title, duration: track.duration });
 });
 player.events.on('playerFinish', (queue, track) => {
   const channelId = (queue.metadata?.channel as { id?: string } | undefined)?.id;
-  music.updatePlayStatusToFinished(channelId, { title: track.title });
+  music.updatePlayStatusToFinished(channelId, track.id, { title: track.title });
 });
 
 const commandHandlers: Record<string, (msg: import('discord.js').Message, args: string[]) => Promise<void>> = {
